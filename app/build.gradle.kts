@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.dialrec"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"
@@ -38,6 +38,7 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.4.3"
@@ -52,8 +53,10 @@ android {
 dependencies {
     implementation("androidx.appcompat:appcompat:1.4.1")
     implementation("androidx.core:core-ktx:1.9.0")
+    implementation("com.jakewharton.timber:timber:4.7.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
     implementation("androidx.activity:activity-compose:1.7.0")
+    implementation("io.reactivex.rxjava3:rxjava:3.1.3")
     implementation(platform("androidx.compose:compose-bom:2023.03.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

@@ -1,46 +1,94 @@
 package com.example.dialrec
 
-import android.content.BroadcastReceiver
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.telecom.Connection
-import android.widget.Button
-import android.widget.TextView
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import android.telecom.Call
+import android.view.View
+import android.view.WindowManager
+import androidx.appcompat.app.AppCompatActivity
+import com.example.dialrec.databinding.ActivityCallBinding
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import java.util.concurrent.TimeUnit
 
 class CallActivity : AppCompatActivity() {
-    private lateinit var callStatus: TextView
-    private lateinit var receiver: BroadcastReceiver
+
+    private lateinit var binding: ActivityCallBinding
+    private lateinit var disposables: CompositeDisposable
+    private lateinit var number: String
+    private lateinit var ongoingCall: OngoingCall
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_call)
+        binding = ActivityCallBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        callStatus = findViewById(R.id.callStatus)
-        val hangUpButton = findViewById<Button>(R.id.hangUpButton)
+        ongoingCall = OngoingCall()
+        disposables = CompositeDisposable()
 
-        hangUpButton.setOnClickListener {
-            // End the call when the button is clicked
-            MyConnectionService.currentConnection?.onDisconnect()
-            finish()
-        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                or WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
 
-        receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == "CallStatusChanged") {
-                    callStatus.text = intent.getStringExtra("status")
-                }
-            }
-        }
+        number = intent.data?.schemeSpecificPart ?: ""
 
-        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, IntentFilter("CallStatusChanged"))
+        binding.answer.setOnClickListener { onAnswerClicked() }
+        binding.hangup.setOnClickListener { onHangupClicked() }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver)
+    fun onAnswerClicked() {
+        ongoingCall.answer()
+    }
+
+    fun onHangupClicked() {
+        ongoingCall.hangup()
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        updateUi(-1)
+        disposables.add(
+                OngoingCall.state.subscribe { state ->
+                    updateUi(state)
+                })
+
+        disposables.add(
+                OngoingCall.state.filter { state ->
+                    state == Call.STATE_DISCONNECTED
+                }
+                        .delay(1, TimeUnit.SECONDS)
+                        .firstElement()
+                        .subscribe { _ ->
+                            finish()
+                        })
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun updateUi(state: Int) {
+        binding.callInfo.text = "${Constants.asString(state)}\n$number"
+
+        binding.answer.visibility = if (state != Call.STATE_RINGING) View.GONE else View.VISIBLE
+
+        binding.hangup.visibility = if (listOf(
+                        Call.STATE_DIALING,
+                        Call.STATE_RINGING,
+                        Call.STATE_ACTIVE).contains(state)) View.VISIBLE else View.GONE
+    }
+
+    override fun onStop() {
+        super.onStop()
+        disposables.clear()
+    }
+
+    companion object {
+        fun start(context: Context, call: Call) {
+            val intent = Intent(context, CallActivity::class.java)
+                    .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .setData(call.details.handle)
+            context.startActivity(intent)
+        }
     }
 }
