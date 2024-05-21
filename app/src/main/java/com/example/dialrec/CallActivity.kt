@@ -2,8 +2,6 @@ package com.example.dialrec
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
-import android.os.Bundle
 import android.telecom.Call
 import android.view.View
 import android.view.WindowManager
@@ -11,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.dialrec.databinding.ActivityCallBinding
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.util.concurrent.TimeUnit
+import android.content.Intent
+import android.os.Bundle
 
 class CallActivity : AppCompatActivity() {
 
@@ -18,6 +18,8 @@ class CallActivity : AppCompatActivity() {
     private lateinit var disposables: CompositeDisposable
     private lateinit var number: String
     private lateinit var ongoingCall: OngoingCall
+    private lateinit var callRecorder: CallRecorder
+    private lateinit var outputFile: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,6 +28,7 @@ class CallActivity : AppCompatActivity() {
 
         ongoingCall = OngoingCall()
         disposables = CompositeDisposable()
+        callRecorder = CallRecorder(this)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 or WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
@@ -49,6 +52,8 @@ class CallActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
 
+        callRecorder.startRecording()
+
         updateUi(-1)
         disposables.add(
                 OngoingCall.state.subscribe { state ->
@@ -66,6 +71,12 @@ class CallActivity : AppCompatActivity() {
                         })
     }
 
+    override fun onStop() {
+        super.onStop()
+        callRecorder.stopRecording()
+        disposables.clear()
+    }
+
     @SuppressLint("SetTextI18n")
     private fun updateUi(state: Int) {
         binding.callInfo.text = "${Constants.asString(state)}\n$number"
@@ -76,11 +87,6 @@ class CallActivity : AppCompatActivity() {
                         Call.STATE_DIALING,
                         Call.STATE_RINGING,
                         Call.STATE_ACTIVE).contains(state)) View.VISIBLE else View.GONE
-    }
-
-    override fun onStop() {
-        super.onStop()
-        disposables.clear()
     }
 
     companion object {

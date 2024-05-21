@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import com.example.dialrec.databinding.ActivityDialerBinding
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
 
 class DialerActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDialerBinding
@@ -34,9 +35,12 @@ class DialerActivity : AppCompatActivity() {
     }
 
     private fun makeCall() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PERMISSION_GRANTED) {
             val uri = Uri.parse("tel:" + binding.phoneNumberInput.text.toString().trim())
             startActivity(Intent(Intent.ACTION_CALL, uri))
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CALL_PHONE, Manifest.permission.RECORD_AUDIO), REQUEST_PERMISSION)
         }
     }
 
@@ -55,8 +59,12 @@ class DialerActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_PERMISSION && grantResults.contains(PERMISSION_GRANTED)) {
-            makeCall()
+        if (requestCode == REQUEST_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PERMISSION_GRANTED && grantResults[1] == PERMISSION_GRANTED) {
+                makeCall()
+            } else {
+                Toast.makeText(this, "Permissions are required to make a call.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
